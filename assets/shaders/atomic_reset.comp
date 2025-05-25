@@ -1,0 +1,21 @@
+#version 450 core
+
+#define THREAD_SIZE 64
+
+// Atomic value buffer
+//layout (set = 1, binding = 0) restrict buffer DataOut4
+
+layout (binding = 1) restrict buffer DataOut4
+{
+    ivec4 atomicValues[];
+};
+
+
+layout (local_size_x = THREAD_SIZE, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+    int indexInThreadGroup = int(gl_LocalInvocationID.x);
+    atomicValues[indexInThreadGroup * 2 + 0]= ivec4(0, 1, 0, 0);
+    atomicValues[indexInThreadGroup * 2 + 1]= ivec4(0);
+}
+

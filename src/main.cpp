@@ -6,6 +6,10 @@
 
 #include <raylib.h>
 #include <raymath.h>
+#include <rlgl.h>
+
+#include "grassfield.h"
+
 
 static const float ROTATION_SPEED = 4.0;
 
@@ -123,6 +127,7 @@ static void init()
     g_vars.physicsTimeStep = 0;
     g_vars.dtOver = 0.0;
 
+    GrassField::getInstance()->init();
 }
 
 static void deinit()
@@ -133,6 +138,8 @@ static void deinit()
 static void update()
 {
     //double dt = GetFrameTime();
+    GrassField::getInstance()->update(GetFrameTime());
+
 }
 
 static void updatePhysics()
@@ -272,6 +279,8 @@ static void updateRocks(double dt)
 
 void render()
 {
+    GrassField::getInstance()->update(GetFrameTime());
+
     BeginDrawing();
 
     ClearBackground({0, 64, 96, 0});
@@ -284,7 +293,16 @@ void render()
     drawBullets(screenWidth, screenHeight);
     drawRocks(screenWidth, screenHeight);
 
+    // Flush raylib stuff.
+    rlDrawRenderBatchActive();
+
+    GrassField::getInstance()->computeGrassField();
+    GrassField::getInstance()->drawGrassField();
+    rlDrawRenderBatchActive();
+
     DrawFPS(4, 4);
+    rlDrawRenderBatchActive();
+    //DrawRenderBatch();
 
     EndDrawing();
 }

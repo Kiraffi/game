@@ -1,0 +1,74 @@
+#version 450 core
+
+
+#define VERTICES_PER_INSTANCE (4 * 4)
+#define INDICES_PER_INSTANCE (4 * 6)
+
+shared uint beginInd;
+
+layout (binding = 3) buffer DataOut4
+{
+    ivec4 atomicValues[];
+};
+
+struct Grass
+{
+    vec3 pos;
+    uint col;
+
+    float width;
+    float height;
+    float padding2;
+    float padding3;
+};
+
+struct GrassVertex
+{
+    vec3 pos;
+    uint col;
+    vec3 norm;
+    uint padding;
+};
+
+
+layout (std430, binding=1) restrict readonly buffer shader_data
+{
+    Grass values[];
+} vData;
+
+layout (std430, binding=2) buffer shader_data_out
+{
+    GrassVertex values[];
+} vOutData;
+
+layout(local_size_x = 16, local_size_y = 1 , local_size_z = 1) in;
+void main()
+{
+    uint globalId = gl_GlobalInvocationID.x;
+    uint localId = gl_LocalInvocationID.x;
+    uint workGroupId = gl_WorkGroupID.x;
+
+    uint ind = 0;
+    if(localId == 0)
+    {
+        ind = atomicAdd(atomicValues[2].x, VERTICES_PER_INSTANCE);
+        atomicAdd(atomicValues[0].x, INDICES_PER_INSTANCE);
+        beginInd = ind;
+    }
+    barrier();
+    groupMemoryBarrier();
+    memoryBarrier();
+
+    GrassVertex v;
+    v.col = vData.values[workGroupId].col;// -1
+    v.pos = vData.values[workGroupId].pos;
+    float thickness = 1.0 - (((localId + 2) / 4) / 4.0);
+    thickness /= 2.0;
+    v.pos.x += (localId % 4 == 0 || localId % 4 == 2) ? thickness : -thickness;
+    v.pos.y += localId / 4;
+    v.pos.y += (localId % 4) < 2 ? 0 : 1;
+
+    vOutData.values[beginInd + localId] = v;
+
+}
+
