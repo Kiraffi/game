@@ -8,7 +8,7 @@
 #include <rlgl.h>
 #include <external/glad.h> // raylib
 
-static const int32_t MAX_GRASS_AMOUNT = 4;
+static const int32_t MAX_GRASS_AMOUNT = 64 * 1024 * 2;
 static const int32_t GRASS_VERTICES_PER_INSTANCE = 16;
 
 struct Grass
@@ -59,6 +59,12 @@ public:
     uint32_t m_indexBuffer = {};
     uint32_t m_vao = {};
 
+    Camera m_camera = {
+        .position = {0, 0, 10},
+        .up = {0, 1, 0},
+        .fovy = DEG2RAD * 90.0f,
+        .projection = CAMERA_PERSPECTIVE };
+
 };
 
 
@@ -75,6 +81,7 @@ GrassField* GrassField::getInstance()
 
 void GrassField::init()
 {
+    s_grassFieldInstance->m_camera.position = {0, 0, 10};
     {
         char *atomicShaderCode = LoadFileText("assets/shaders/atomic_reset.comp");
         uint32_t atomicShader = rlCompileShader(atomicShaderCode, RL_COMPUTE_SHADER);
@@ -111,7 +118,7 @@ void GrassField::init()
         for(int i = 0; i < MAX_GRASS_AMOUNT; ++i)
         {
             s_grassFieldInstance->m_grass.emplace_back(Grass{
-                .pos{.x = float(i % 1024), .z = float(i / 1024)},
+                .pos{.x = float(i % 256), .z = -float(i / 256)},
                 .col = ~0u
             });
         }
@@ -171,9 +178,23 @@ void GrassField::update(double dt)
 
     UniformBuf uni = {};
 
+    static const float SPEED = 10.0f;
+
+    Vector3 movement = {};
+
+    if(IsKeyDown(KEY_W)) movement -= Vector3{0, 0, 1} * dt * SPEED;
+    if(IsKeyDown(KEY_S)) movement += Vector3{0, 0, 1} * dt * SPEED;
+    if(IsKeyDown(KEY_A)) movement -= Vector3{1, 0, 0} * dt * SPEED;
+    if(IsKeyDown(KEY_D)) movement += Vector3{1, 0, 0} * dt * SPEED;
+    if(IsKeyDown(KEY_Q)) movement += Vector3{0, 1, 0} * dt * SPEED;
+    if(IsKeyDown(KEY_E)) movement -= Vector3{0, 1, 0} * dt * SPEED;
+
+    s_grassFieldInstance->m_camera.position += movement;
+    s_grassFieldInstance->m_camera.target += movement;
+
     uni.m_proj = MatrixPerspective(DEG2RAD * 90.0f,
         screenWidth / screenHeight, 0.1f, 10000.0f);
-    uni.m_view = MatrixLookAt({5.0f, 3.0f, 5.0f}, {5.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+    uni.m_view = GetCameraMatrix(s_grassFieldInstance->m_camera);
 
     //uni.m_vp = uni.m_proj * uni.m_view;
     uni.m_vp = uni.m_view * uni.m_proj;
